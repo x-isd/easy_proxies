@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -832,16 +831,12 @@ func (m *Manager) prepareNodeLocked(node config.NodeConfig, currentName string) 
 		return config.NodeConfig{}, fmt.Errorf("%w: URI 不能为空", monitor.ErrInvalidNode)
 	}
 
-	// Extract name from URI fragment (#name) if not provided
+	// Extract name from URI if not provided
 	if node.Name == "" {
 		if currentName != "" {
 			node.Name = currentName
-		} else if idx := strings.LastIndex(node.URI, "#"); idx != -1 && idx < len(node.URI)-1 {
-			// Extract and URL-decode the fragment
-			fragment := node.URI[idx+1:]
-			if decoded, err := url.QueryUnescape(fragment); err == nil && decoded != "" {
-				node.Name = decoded
-			}
+		} else {
+			node.Name = config.ExtractNodeName(node.URI)
 		}
 		// Fallback to auto-generated name
 		if node.Name == "" {

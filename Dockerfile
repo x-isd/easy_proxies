@@ -13,6 +13,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -r -u 10001 easy \
     && mkdir -p /etc/easy-proxies \
+    && touch /etc/easy-proxies/nodes.txt \
     && chown -R easy:easy /etc/easy-proxies
 WORKDIR /app
 COPY --from=builder /src/easy-proxies /usr/local/bin/easy-proxies

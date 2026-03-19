@@ -9,7 +9,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -480,15 +479,9 @@ func (m *Manager) createNewConfig(nodes []config.NodeConfig) *config.Config {
 		nodes[i].Name = strings.TrimSpace(nodes[i].Name)
 		nodes[i].URI = strings.TrimSpace(nodes[i].URI)
 
-		// Extract name from URI fragment if not provided
+		// Auto-extract name from URI if not provided
 		if nodes[i].Name == "" {
-			if parsed, err := url.Parse(nodes[i].URI); err == nil && parsed.Fragment != "" {
-				if decoded, err := url.QueryUnescape(parsed.Fragment); err == nil {
-					nodes[i].Name = decoded
-				} else {
-					nodes[i].Name = parsed.Fragment
-				}
-			}
+			nodes[i].Name = config.ExtractNodeName(nodes[i].URI)
 		}
 		if nodes[i].Name == "" {
 			nodes[i].Name = fmt.Sprintf("node-%d", i)

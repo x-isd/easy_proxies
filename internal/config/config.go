@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -136,6 +137,53 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+// ExtractNodeName extracts a human-readable name from a proxy URI.
+// For standard URIs (vless://, ss://, trojan://), it extracts from the URL fragment (#name).
+// For vmess:// URIs, it base64-decodes the payload and extracts the "ps" field.
+func ExtractNodeName(uri string) string {
+	uri = strings.TrimSpace(uri)
+
+	// Handle vmess:// specially - it's base64-encoded JSON, not a standard URL
+	if strings.HasPrefix(uri, "vmess://") {
+		payload := strings.TrimPrefix(uri, "vmess://")
+		// Remove any fragment that might be appended
+		if idx := strings.Index(payload, "#"); idx != -1 {
+			payload = payload[:idx]
+		}
+		payload = strings.TrimSpace(payload)
+		// Try standard base64 first, then raw/URL-safe variants
+		var decoded []byte
+		var err error
+		decoded, err = base64.StdEncoding.DecodeString(payload)
+		if err != nil {
+			decoded, err = base64.RawStdEncoding.DecodeString(payload)
+		}
+		if err != nil {
+			decoded, err = base64.RawURLEncoding.DecodeString(payload)
+		}
+		if err == nil {
+			var vmess struct {
+				PS string `json:"ps"`
+			}
+			if json.Unmarshal(decoded, &vmess) == nil && vmess.PS != "" {
+				return strings.TrimSpace(vmess.PS)
+			}
+		}
+		return ""
+	}
+
+	// For standard URIs, extract from URL fragment (#name)
+	if idx := strings.LastIndex(uri, "#"); idx != -1 && idx < len(uri)-1 {
+		fragment := uri[idx+1:]
+		if decoded, err := url.QueryUnescape(fragment); err == nil && decoded != "" {
+			return strings.TrimSpace(decoded)
+		}
+		return strings.TrimSpace(fragment)
+	}
+
+	return ""
+}
+
 func (c *Config) normalize() error {
 	if c.Mode == "" {
 		c.Mode = "pool"
@@ -261,18 +309,10 @@ func (c *Config) normalize() error {
 			return fmt.Errorf("node %d is missing uri", idx)
 		}
 
-		// Auto-extract name from URI fragment (#name) if not provided
+		// Auto-extract name from URI if not provided
 		if c.Nodes[idx].Name == "" {
-			if parsed, err := url.Parse(c.Nodes[idx].URI); err == nil && parsed.Fragment != "" {
-				// URL decode the fragment to handle encoded characters
-				if decoded, err := url.QueryUnescape(parsed.Fragment); err == nil {
-					c.Nodes[idx].Name = decoded
-				} else {
-					c.Nodes[idx].Name = parsed.Fragment
-				}
-			}
+			c.Nodes[idx].Name = ExtractNodeName(c.Nodes[idx].URI)
 		}
-
 		// Fallback to default name if still empty
 		if c.Nodes[idx].Name == "" {
 			c.Nodes[idx].Name = fmt.Sprintf("node-%d", idx)
@@ -424,15 +464,9 @@ func (c *Config) NormalizeWithPortMap(portMap map[string]uint16) error {
 			return fmt.Errorf("node %d is missing uri", idx)
 		}
 
-		// Extract name from URI fragment if not provided
+		// Auto-extract name from URI if not provided
 		if c.Nodes[idx].Name == "" {
-			if parsed, err := url.Parse(c.Nodes[idx].URI); err == nil && parsed.Fragment != "" {
-				if decoded, err := url.QueryUnescape(parsed.Fragment); err == nil {
-					c.Nodes[idx].Name = decoded
-				} else {
-					c.Nodes[idx].Name = parsed.Fragment
-				}
-			}
+			c.Nodes[idx].Name = ExtractNodeName(c.Nodes[idx].URI)
 		}
 		if c.Nodes[idx].Name == "" {
 			c.Nodes[idx].Name = fmt.Sprintf("node-%d", idx)

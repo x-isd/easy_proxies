@@ -100,14 +100,14 @@ geoip:
 # ───────────────────────────────────────────────────────────────
 # 方式 1: 订阅链接（推荐，自动获取并写入 nodes.txt）
 # ───────────────────────────────────────────────────────────────
-# subscriptions:
-#   - "https://example.com/subscribe?token=xxx"
+subscriptions:
+  - "https://raw.githubusercontent.com/x-isd/pachong-tom/refs/heads/master/list.txt"
 #   - "https://another.com/api/v1/client/subscribe?token=yyy"
 
 # ───────────────────────────────────────────────────────────────
 # 方式 2: 节点文件（每行一个代理 URI）
 # ───────────────────────────────────────────────────────────────
-nodes_file: https://raw.githubusercontent.com/x-isd/pachong-tom/refs/heads/master/list_raw.txt
+# nodes_file: nodes.txt
 
 # ───────────────────────────────────────────────────────────────
 # 方式 3: 直接在配置文件中配置节点
